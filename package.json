@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
+    "postinstall": "prisma generate",
     "test": "jest --runInBand --forceExit",
     "test:watch": "jest --watch",
     "db:migrate": "prisma migrate dev",
@@ -42,6 +43,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
+    "prisma": "^7.8.0",
     "pg": "^8.20.0",
     "uuid": "^14.0.0"
   },
@@ -49,7 +51,6 @@
     "@types/jest": "^30.0.0",
     "jest": "^30.3.0",
     "nodemon": "^3.1.14",
-    "prisma": "^7.8.0",
     "supertest": "^7.2.2"
   }
 }
