@@ -22,6 +22,9 @@ const aiRouter = require('./modules/ai/ai.routes');
 
 const app = express();
 
+// Required on Vercel/other reverse proxies so req.ip and rate limit behave correctly.
+app.set('trust proxy', 1);
+
 // ── Security & parsing ────────────────────────────────────
 app.use(helmet());
 app.use(cors({
