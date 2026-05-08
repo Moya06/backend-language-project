@@ -11,8 +11,12 @@ const { logger } = require('./middleware/logger.middleware');
 const { errorHandler, notFoundHandler } = require('./middleware/error.middleware');
 
 const _normalize = (o = '') => o.trim().replace(/\/+$/, '');
-const _allowlist = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
+const _configuredOrigins = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
   .split(',').map(_normalize).filter(Boolean);
+const _allowlist = Array.from(new Set([
+  ..._configuredOrigins,
+  'https://frontend-language-project.vercel.app',
+]));
 
 // Module routers
 const authRouter = require('./modules/auth/auth.routes');
