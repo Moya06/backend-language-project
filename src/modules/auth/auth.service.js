@@ -1,8 +1,8 @@
 'use strict';
 const bcrypt = require('bcryptjs');
+const { randomUUID } = require('crypto');
 const prisma = require('../../config/prisma');
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../../utils/jwt');
-const { v4: uuidv4 } = require('uuid');
 
 const BCRYPT_ROUNDS = 12;
 
@@ -87,7 +87,7 @@ const logout = async (token) => {
 const _issueTokens = async (user) => {
   const payload = { sub: user.id, email: user.email, role: user.role };
   const accessToken = signAccessToken(payload);
-  const rawRefresh = uuidv4();
+  const rawRefresh = randomUUID();
   const refreshToken = signRefreshToken({ sub: user.id, jti: rawRefresh });
 
   const expiresAt = new Date();
