@@ -36,7 +36,7 @@ app.use(cors({
   origin(origin, cb) {
     if (!origin) return cb(null, true); // Postman / server-to-server
     const ok = _allowlist.includes(_normalize(origin));
-    cb(ok ? null : new Error('Not allowed by CORS'), ok);
+    cb(null, ok);
   },
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
