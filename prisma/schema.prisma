@@ -1,0 +1,310 @@
+// GrammarLanguages Platform — Prisma Schema
+// PostgreSQL + full relational model
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+// ─────────────────────────────────────────
+// USERS & AUTH
+// ─────────────────────────────────────────
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  username         String    @unique
+  passwordHash     String
+  displayName      String?
+  avatarUrl        String?
+  nativeLanguage   String    @default("en")
+  xp               Int       @default(0)
+  level            Int       @default(1)
+  streakDays       Int       @default(0)
+  lastActivityDate DateTime?
+  role             UserRole  @default(STUDENT)
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  progress            UserProgress[]
+  achievements        UserAchievement[]
+  placementAttempts   PlacementAttempt[]
+  refreshTokens       RefreshToken[]
+  skillScores         UserSkillScore[]
+  notifications       UserNotification[]
+
+  @@index([email])
+  @@index([xp])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+// ─────────────────────────────────────────
+// LANGUAGES & CATALOGUE
+// ─────────────────────────────────────────
+
+model Language {
+  id          String   @id @default(uuid())
+  code        String   @unique  // "en", "es", "fr"
+  name        String            // "English"
+  nativeName  String            // "English"
+  flagEmoji   String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  levels         Level[]
+  userProgress   UserProgress[]
+  placementTests PlacementTest[]
+}
+
+model Level {
+  id          String   @id @default(uuid())
+  languageId  String
+  language    Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  code        String            // "A1", "A2", "B1", "B2", "C1", "C2"
+  title       String            // "Beginner"
+  description String?
+  sortOrder   Int      @default(0)
+  xpRequired  Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  modules      Module[]
+  userProgress UserProgress[]
+
+  @@unique([languageId, code])
+  @@index([languageId])
+}
+
+model Module {
+  id          String     @id @default(uuid())
+  levelId     String
+  level       Level      @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  sortOrder   Int        @default(0)
+  xpReward    Int        @default(10)
+  skillFocus  SkillType?
+  iconEmoji   String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+
+  activities   Activity[]
+  userProgress UserProgress[]
+
+  @@index([levelId])
+}
+
+model Activity {
+  id              String       @id @default(uuid())
+  moduleId        String
+  module          Module       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title           String
+  type            ActivityType
+  content         Json
+  xpReward        Int          @default(5)
+  sortOrder       Int          @default(0)
+  difficultyScore Float        @default(0.5)
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  userProgress        UserProgress[]
+  weakSkillActivities WeakSkillActivity[]
+
+  @@index([moduleId])
+}
+
+enum ActivityType {
+  MULTIPLE_CHOICE
+  FILL_BLANK
+  LISTENING
+  SPEAKING
+  WRITING
+  MATCHING
+  REORDER
+  TRANSLATION
+}
+
+enum SkillType {
+  GRAMMAR
+  VOCABULARY
+  LISTENING
+  SPEAKING
+  READING
+  WRITING
+  PRONUNCIATION
+}
+
+// ─────────────────────────────────────────
+// PROGRESS
+// ─────────────────────────────────────────
+
+model UserProgress {
+  id         String         @id @default(uuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  languageId String?
+  language   Language?      @relation(fields: [languageId], references: [id])
+  levelId    String?
+  level      Level?         @relation(fields: [levelId], references: [id])
+  moduleId   String?
+  module     Module?        @relation(fields: [moduleId], references: [id])
+  activityId String?
+  activity   Activity?      @relation(fields: [activityId], references: [id])
+  status     ProgressStatus @default(NOT_STARTED)
+  score      Int?
+  xpEarned   Int            @default(0)
+  attempts   Int            @default(0)
+  completedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@unique([userId, activityId], name: "user_activity_progress")
+  @@index([userId, languageId])
+  @@index([userId, levelId])
+  @@index([userId, moduleId])
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  LOCKED
+}
+
+model UserSkillScore {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  languageId String
+  skill      SkillType
+  score      Float     @default(0)
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([userId, languageId, skill])
+  @@index([userId, languageId])
+}
+
+model WeakSkillActivity {
+  id         String    @id @default(uuid())
+  userId     String
+  activityId String
+  activity   Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  skill      SkillType
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────
+// GAMIFICATION
+// ─────────────────────────────────────────
+
+model Achievement {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  title       String
+  description String
+  iconEmoji   String?
+  xpReward    Int      @default(0)
+  condition   Json
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  unlockedAt    DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
+
+model UserNotification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+// ─────────────────────────────────────────
+// PLACEMENT TEST
+// ─────────────────────────────────────────
+
+model PlacementTest {
+  id         String   @id @default(uuid())
+  languageId String
+  language   Language @relation(fields: [languageId], references: [id])
+  version    String   @default("1")
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  questions PlacementQuestion[]
+  attempts  PlacementAttempt[]
+
+  @@unique([languageId, version])
+}
+
+model PlacementQuestion {
+  id        String        @id @default(uuid())
+  testId    String
+  test      PlacementTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  text      String
+  options   Json
+  correct   String
+  skill     SkillType
+  cefrLevel String
+  sortOrder Int
+
+  @@index([testId, sortOrder])
+}
+
+model PlacementAttempt {
+  id             String        @id @default(uuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testId         String
+  test           PlacementTest @relation(fields: [testId], references: [id])
+  answers        Json
+  score          Int
+  cefrResult     String
+  skillBreakdown Json?
+  completedAt    DateTime      @default(now())
+
+  @@index([userId])
+}
+
