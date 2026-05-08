@@ -6,9 +6,13 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 
-const { PORT, CORS_ORIGIN, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } = require('./config/env');
+const { PORT, RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX } = require('./config/env');
 const { logger } = require('./middleware/logger.middleware');
 const { errorHandler, notFoundHandler } = require('./middleware/error.middleware');
+
+const _normalize = (o = '') => o.trim().replace(/\/+$/, '');
+const _allowlist = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
+  .split(',').map(_normalize).filter(Boolean);
 
 // Module routers
 const authRouter = require('./modules/auth/auth.routes');
@@ -28,10 +32,14 @@ app.set('trust proxy', 1);
 // ── Security & parsing ────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin: CORS_ORIGIN,
+  credentials: true,
+  origin(origin, cb) {
+    if (!origin) return cb(null, true); // Postman / server-to-server
+    const ok = _allowlist.includes(_normalize(origin));
+    cb(ok ? null : new Error('Not allowed by CORS'), ok);
+  },
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
 }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
